@@ -1,5 +1,6 @@
 {
-  "name": "test",
+  "homepage": "https://Pancras-Zheng.github.io/interesting_exercises",
+  "name": "exercise",
   "version": "0.0.0",
   "private": true,
   "scripts": {
@@ -8,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "sass": "^1.62.1",
     "vue": "^3.2.47",
     "vue-router": "^4.1.6"
   },
