@@ -66,10 +66,7 @@
 
 <script setup>
 import Scale from "@/components/Scale.vue";
-import { V3ColorPicker } from 'v3-color-picker';
-import {onMounted, onUpdated, reactive, ref, watchEffect} from "vue";
-
-const color = ref('#bba');
+import { reactive, ref} from "vue";
 
 /*
 Scale组件开放以下属性：
@@ -92,13 +89,6 @@ const options = reactive({
   valueColor: "#06ee8e",
   backgroundColor: "#040404"
 });
-
-function handleScaleColor(e) {
-        // options.scaleColor= color.value;
-    // valueColor.value=e.target.value;
-        // options.scaleColor= e.target.value;
-}
-
 </script>
 
 <style lang="scss" scoped>
