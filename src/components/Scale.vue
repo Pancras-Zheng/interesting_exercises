@@ -2,105 +2,22 @@
     <div class="scale-container" id="scale-container">
         <!--指示器-->
         <div class="indicator">
-<!--            <div class="value">{{props.value}}</div>-->
             <div id="indicator-val" class="value">{{ruleNumber }}</div>
             <div id="indicator-arr" class="arrow"></div>
         </div>
         <!--刻度尺-->
-<!--        <div class="inner-container">
-            <div class="scale" @drag="onScaleDrag">
-                <div v-for="tick in ticks" :key="tick" class="tick">
-                </div>
-                <div class="measure">
-                    dd
-                </div>
-            </div>
-        </div>-->
         <canvas ref="canvas"
                 id="test-canvas"
                 width="50px"
-                @touchmove="canvasTouchMove"
-                @touchend="canvasTouchEnd"
-                @touchstart="canvasTouchStart"
-                @mousemove="canvasTouchMove"
-                @mouseup="canvasTouchEnd"
-                @mousedown="canvasTouchStart"
+                @mousemove.stop="canvasTouchMove"
+                @mouseup.stop="canvasTouchEnd"
+                @mousedown.stop="canvasTouchStart"
         ></canvas>
     </div>
 </template>
 
-<!--<script setup>
-import {computed, onMounted, ref, toRefs} from "vue";
-
-const props = defineProps({
-    minValue: {
-        type: Number,
-        default: 0,
-    },
-    maxValue: {
-        type: Number,
-        default: 100,
-    },
-    value: {
-        type: Number,
-        default: 50,
-    },
-    scaleColor: {
-        type: String,
-        default: '#ffffff',
-    },
-    sliderColor: {
-        type: String,
-        default:'#06ee8e',
-    },
-    valueColor: {
-        type: String,
-        default:'#06ee8e',
-    },
-    backgroundColor: {
-        type: String,
-        default:'#040404',
-    },
-})
-let sliderPosition = ref('50%')
-// Calculate the number of ticks needed for the scale
-const ticks = computed(() => {
-    const { minValue, maxValue } = toRefs(props);
-    const step = 1;
-    const numTicks = (maxValue - minValue) / step;
-    return Array.from({ length: numTicks }, (_, i) => minValue + i * step);
-});
-
-// Update the slider position based on the current value
-const updateSliderPosition = (value) => {
-    const { minValue, maxValue } = props;
-    const range = maxValue.value - minValue.value;
-    const percent = (value - minValue.value) / range * 100;
-    sliderPosition.value = `${percent}%`;
-    console.log(`sliderPosition.value: ${sliderPosition.value}`)
-};
-
-// Handle slider drag events
-const onScaleDrag = (event) => {
-    const { minValue, maxValue } = props;
-    const scaleRect = event.target.getBoundingClientRect();
-    const y = event.clientY - scaleRect.top;
-    const range = maxValue.value - minValue.value;
-    const percent = y / scaleRect.height;
-    const value = minValue.value + Math.round(range * percent / 1) * 1;
-    console.log(`value: ${value}`)
-    updateSliderPosition(value);
-};
-
-onMounted(()=>{
-    console.log(`the component is now mounted.`, props)
-    updateSliderPosition(props.value)
-})
-
-</script>-->
-
 <script lang="ts">
-import { defineComponent, reactive, toRefs, onMounted, nextTick } from 'vue';
+import {defineComponent, reactive, toRefs, onMounted, nextTick, watch, onUpdated} from 'vue';
 export default defineComponent({
     name: 'Home',
     props :{
@@ -143,24 +60,18 @@ export default defineComponent({
         const itemWidth = 10;
         /**  画刻度线的起始x坐标*/
         const startX = 0;
-        /*接收父组件传入的自定义样式*/
-        const { minValue, maxValue, backgroundColor,
-            scaleColor, sliderColor, valueColor } = props;
-
-        // 修改指示器样式
-        const root = document.documentElement;
-        root.style.setProperty('--scale-container', backgroundColor);
-        root.style.setProperty('--indicator-value', valueColor);
-        root.style.setProperty('--indicator-arrow', sliderColor);
+        /*接收父组件传入的自定义样式,解构属性会丢失响应性*/
+        // const { minValue, maxValue, backgroundColor,
+        //     scaleColor, sliderColor, valueColor } = props;
 
         let isDown= false;
         let topMin;
         let topMax;
         /**  惯性滑动用到的计时器 */
         let enableInertiaMove = true;
-        // 手指按下时的时间
+        // 按下时的时间
         // let startTime = 0;
-        /**  手指按下时的y坐标，用来比较本次滑动的方向和距离，加在currentCanvasLocation上，就能让尺子移动了*/
+        /**  按下时的y坐标，用来比较本次滑动的方向和距离，加在currentCanvasLocation上，就能让尺子移动了*/
         let touchStartY = 0;
         /* 手指按下时，当前 currentCanvasLocation 的值  */
         let startValue = 0;
@@ -180,9 +91,9 @@ export default defineComponent({
         let ctx;
         /* 画布上侧到画布中间格子的数量，加上这个偏移值就能符合视觉的尺子当前值 */
         let numberOffset = 0;
-        /** 手指抬起之前的滑动距离，用来发起惯性滑动*/
+        /** 抬起之前的滑动距离，用来发起惯性滑动*/
         let lastScrollDistacne = 0;
-        /** 手指最后抬起之前接触的y坐标*/
+        /** 最后抬起之前接触的y坐标*/
         let lastTouchY = 0;
         /* 初始化 Canvas */
         const initCanvas = () => {
@@ -196,8 +107,8 @@ export default defineComponent({
             const screenCount = parseInt((canvas.clientHeight / itemWidth).toFixed(0))
             // 计算尺子读数需要的偏移刻度数
             numberOffset = parseInt((screenCount / 2).toFixed(0)) ;
-            topMin = minValue - numberOffset;
-            topMax = maxValue - numberOffset;
+            topMin = props.minValue - numberOffset;
+            topMax = props.maxValue - numberOffset;
             // 设置宽高
             canvasWidth = canvas.clientWidth;
             canvasHeight = canvas.clientHeight;
@@ -209,12 +120,13 @@ export default defineComponent({
         // 画尺子
         const draw = () => {
             // 设置笔触颜色为黑色，每次绘制之前，先把画布用黑色清空
-            ctx.fillStyle = backgroundColor;
+            ctx.fillStyle = props.backgroundColor;
+            // console.log('ctx.fillStyle', ctx.fillStyle===root.style.getPropertyValue('--scale-container'))
             ctx.beginPath();
             ctx.fillRect(0, 0, canvasWidth, canvasHeight);
             ctx.closePath();
             // 清空完画布，再把笔触设置成白色, 绘制数值
-            ctx.fillStyle = scaleColor;
+            ctx.fillStyle = props.scaleColor;
             // 尺子的最小刻度为10个像素，for循环渲染尺度时会以 start 为准，
             // 所以每次会出现每次滑动时就一格一格的跳动，不够顺滑
             // 把 currentCanvasLocation 末尾的像素值取回来，让滑动更加顺滑
@@ -254,7 +166,7 @@ export default defineComponent({
                 }
             }
             // 绘制刻度线
-            ctx.strokeStyle = scaleColor;
+            ctx.strokeStyle = props.scaleColor;
             // 绘制在尺子数值范围内的竖线
             ctx.moveTo(startX,0);
             ctx.lineTo(startX, canvasHeight);
@@ -267,7 +179,7 @@ export default defineComponent({
         // 判断是否可以绘制
         const canDraw = (y:number): number => {
             const currentNumber = Math.floor(y / itemWidth);
-            if (currentNumber >= minValue && currentNumber <= maxValue) {
+            if (currentNumber >= props.minValue && currentNumber <= props.maxValue) {
                 return 0;
             }
             return -1;
@@ -297,7 +209,7 @@ export default defineComponent({
         const canvasTouchStart = (e) => {
             isDown = true;
             touchStartY = e.pageY;
-            console.log('touchStartY',touchStartY)
+            // console.log('touchStartY',touchStartY)
             // touchStartY = e.changedTouches[0].clientY;
             startValue = currentCanvasLocation;
             // 清除之前的惯性滑动
@@ -308,7 +220,7 @@ export default defineComponent({
             if(!isDown){
                 return;
             }
-            console.log('isDown',isDown)
+            // console.log('isDown',isDown)
             const touchClientY = e.pageY;
             // const touchClientY = e.targetTouches[0].clientY;
             const moveY = Math.floor(touchStartY - touchClientY);
@@ -353,8 +265,31 @@ export default defineComponent({
         }
 
         onMounted(() => {
+            // 修改指示器样式
+            const root = document.documentElement;
+            root.style.setProperty('--scale-container', props.backgroundColor);
+            root.style.setProperty('--indicator-value', props.valueColor);
+            root.style.setProperty('--indicator-arrow', props.sliderColor);
             initCanvas();
         })
+
+        onUpdated(() => {
+            // 修改指示器样式
+            const root = document.documentElement;
+            root.style.setProperty('--scale-container', props.backgroundColor);
+            root.style.setProperty('--indicator-value', props.valueColor);
+            root.style.setProperty('--indicator-arrow', props.sliderColor);
+            initCanvas();
+            draw();
+            console.log('onUpdated',props.value)
+        })
+    watch(() => props.value, (value) => {
+        console.log('watch',value)
+        if (value) {
+        state.ruleNumber = value;
+        currentCanvasLocation = (value - numberOffset) * itemWidth;
+        draw();
+    }})
         return {
             ...toRefs(state),
             canvasTouchMove,
@@ -410,33 +345,7 @@ export default defineComponent({
             background-color: var(--indicator-arrow);
         }
     }
-    // 刻度尺
-    /*.inner-container{
-      width: 50px;
-        overflow-x: hidden;
-        overflow-y: scroll;
-        // 刻度尺背景
-        .scale {
-            height: 4000px;
-            background-color: $scaleColor;
-            // 刻度尺刻度
-            .tick {
-                height: 2px;
-                width: 40px;
-                background-color: #fff;
-                margin: 0 auto;
-            }
-            .measure{
-                height: 40px;
-                width: 40px;
-                background-color: #14bd73;
-            }
-        }
-    }*/
 }
-/*.inner-container::-webkit-scrollbar {
-    display: none;
-}*/
 </style>
 
 
